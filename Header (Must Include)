@@ -1,0 +1,82 @@
+#ifndef GAMEDATA_H
+#define GAMEDATA_H
+
+#include <string>
+#include <vector>
+#include <iostream>
+
+// ==========================================
+// SHARED ENUMS
+// ==========================================
+
+// Defines item categories [cite: 241]
+enum ItemType {
+    FOOD,   // Restores Hunger
+    HERB,   // Restores Health
+    TOOL,   // Key items/Maps
+    WEAPON  // Helps in combat
+};
+
+// Defines Wolf Roles for Pack Management [cite: 109]
+enum WolfRole {
+    HUNTER,
+    SCOUT,
+    GUARD
+};
+
+// ==========================================
+// CORE STRUCTS
+// ==========================================
+
+// 1. WOLF STATS (For Member 3 & Member 1 GUI)
+// Requirements: Health, Hunger, Energy, Reputation [cite: 73-77]
+struct WolfStats {
+    int health = 100;   // Dies at 0
+    int hunger = 0;     // Dies at 100
+    int energy = 100;   // Low energy = disabled choices
+    int reputation = 0; // Affects pack recruitment
+    int dayCount = 1;   // Survival counter
+};
+
+// 2. ITEM DEFINITION (For Member 3 - Inventory)
+// Requirements: Name, Type, Effect, Quantity [cite: 86]
+struct Item {
+    std::string name;
+    ItemType type;
+    int effectValue; // e.g., +20 Health or -30 Hunger
+    int quantity;
+    
+    // Helper constructor for easy item creation
+    Item(std::string n, ItemType t, int e, int q) 
+        : name(n), type(t), effectValue(e), quantity(q) {}
+    Item() {} // Default constructor
+};
+
+// 3. EVENT DEFINITION (For Member 4 - Priority Queue)
+// Requirements: Name, Priority, Description [cite: 236]
+struct GameEvent {
+    std::string title;
+    std::string description;
+    int priority; // 1 = Critical (Bear), 2 = Urgent, 3 = Normal [cite: 100-102]
+    
+    // Overload < operator for Priority Queue comparison
+    // We want the Priority Queue to pop the SMALLEST number (1 is highest priority)
+    bool operator>(const GameEvent& other) const {
+        return priority > other.priority;
+    }
+};
+
+// 4. SAVE STATE (For Member 5 - Undo Stack)
+// Requirements: Store Scenario, Stats, Inventory, Day [cite: 121]
+struct GameState {
+    int currentScenarioID;
+    WolfStats savedStats;
+    std::vector<Item> savedInventory; // EASIER: Convert Linked List to Vector for saving
+    
+    // Constructor to capture the state
+    GameState(int id, WolfStats s, std::vector<Item> inv) 
+        : currentScenarioID(id), savedStats(s), savedInventory(inv) {}
+    GameState() {}
+};
+
+#endif
