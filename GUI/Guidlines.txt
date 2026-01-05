@@ -1,0 +1,3 @@
+Create a separate folder for your project. Extract the files (libraries) and add these files in the same folder. (The GLFW is in the glfw zip file inside the include subfolder and libglfw.a is in the lib-mingw-w64 sub folder).
+Change the tasks.json and cpp_properties.json files exactly as shown. 
+The basic GUI will run. 
