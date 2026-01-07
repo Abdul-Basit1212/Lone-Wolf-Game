@@ -7,167 +7,135 @@
 #include <vector>
 #include <string>
 
+ImVec4 GetStatusColor(float val, float max, bool inverted = false) {
+    float ratio = val / max;
+    if (inverted) ratio = 1.0f - ratio; 
+    if (ratio < 0.3f) return ImVec4(0.8f, 0.2f, 0.2f, 1.0f); 
+    if (ratio < 0.6f) return ImVec4(0.9f, 0.7f, 0.1f, 1.0f); 
+    return ImVec4(0.2f, 0.8f, 0.2f, 1.0f); 
+}
+
 void SetupImGuiStyle() { ImGui::StyleColorsDark(); }
 
-void RenderGameUI(GameEngine& engine, bool& showInventory, bool& showStatsDetails, bool& running)
-{
-    ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize, ImGuiCond_Always);
+void RenderGameUI(GameEngine& engine, bool& showInventory, bool& showStatsDetails, bool& running) {
+    ImGui::SetNextWindowPos(ImVec2(0, 0));
+    ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
+    
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.05f, 0.05f, 0.08f, 1.0f));
 
-    if (ImGui::Begin("Wolf Survival Game", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar))
-    {
-        ImGui::Columns(2, "MainAndSideColumns", true);
+    if (ImGui::Begin("Wolf Survival", nullptr, ImGuiWindowFlags_NoDecoration)) {
+        ImGui::Columns(2, "MainLayout", true);
+        static bool init = true; if(init){ ImGui::SetColumnWidth(0, 320); init = false; }
 
-        // ==========================================
-        // LEFT COLUMN: STATS
-        // ==========================================
-        ImGui::TextDisabled("STATUS");
-        ImGui::Separator();
+        ImGui::TextDisabled("--- STATUS ---");
+        WolfStats& stats = engine.getStats();
         
-        WolfStats& stats = engine.getStats(); 
+        ImGui::Spacing(); ImGui::Text("Health");
+        ImGui::PushStyleColor(ImGuiCol_PlotHistogram, GetStatusColor(stats.health, 100));
+        ImGui::ProgressBar(stats.health/100.0f, ImVec2(-1, 0), std::to_string(stats.health).c_str());
+        ImGui::PopStyleColor();
 
-        ImGui::Text("Health"); ImGui::SameLine(80); 
-        ImGui::ProgressBar(stats.health / 100.0f, ImVec2(-1, 0), (std::to_string(stats.health)).c_str());
+        ImGui::Spacing(); ImGui::Text("Hunger");
+        ImGui::PushStyleColor(ImGuiCol_PlotHistogram, GetStatusColor(stats.hunger, 100, true));
+        ImGui::ProgressBar(stats.hunger/100.0f, ImVec2(-1, 0), std::to_string(stats.hunger).c_str());
+        ImGui::PopStyleColor();
 
-        // FIXED: Hunger Bar works now
-        ImGui::Text("Hunger"); ImGui::SameLine(80); 
-        ImGui::ProgressBar(stats.hunger / 100.0f, ImVec2(-1, 0), (std::to_string(stats.hunger)).c_str());
+        ImGui::Spacing(); ImGui::Text("Energy");
+        ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.1f, 0.5f, 0.9f, 1));
+        ImGui::ProgressBar(stats.energy/100.0f, ImVec2(-1, 0), std::to_string(stats.energy).c_str());
+        ImGui::PopStyleColor();
 
-        ImGui::Text("Energy"); ImGui::SameLine(80); 
-        ImGui::ProgressBar(stats.energy / 100.0f, ImVec2(-1, 0), (std::to_string(stats.energy)).c_str());
+        ImGui::Spacing(); ImGui::Text("Reputation");
+        ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.9f, 0.7f, 0.0f, 1));
+        ImGui::ProgressBar(stats.reputation/100.0f, ImVec2(-1, 0), std::to_string(stats.reputation).c_str());
+        ImGui::PopStyleColor();
 
-        // FIXED: Added Reputation Bar
-        ImGui::Text("Reputation"); ImGui::SameLine(80);
-        ImGui::ProgressBar(stats.reputation / 100.0f, ImVec2(-1, 0), (std::to_string(stats.reputation)).c_str());
+        ImGui::Separator();
+        ImGui::Text("Day: %d", stats.dayCount);
+        ImGui::Text("Rank: %s", engine.getFinalTitle().c_str());
 
         ImGui::Spacing();
-        ImGui::Text("Day: %d", stats.dayCount); 
-        ImGui::Separator();
+        if(ImGui::Button("BACKPACK", ImVec2(-1, 40))) showInventory = !showInventory;
 
-        // ==========================================
-        // STORY REGION
-        // ==========================================
-        ImGui::Spacing();
-        ImGui::TextDisabled("STORY");
-        ImGui::BeginChild("StoryRegion", ImVec2(0, 250), true);
+        ImGui::NextColumn();
+
+        StoryNode* current = engine.getCurrentNode();
         
-        // --- NEW END SCREEN LOGIC ---
-        if (engine.isGameEnded()) {
-            ImGui::SetWindowFontScale(1.2f);
-            if (engine.isVictory()) {
-                ImGui::TextColored(ImVec4(0, 1, 0, 1), "VICTORY!");
-                ImGui::TextWrapped("%s", engine.getCurrentNode()->text.c_str());
-            } else {
-                ImGui::TextColored(ImVec4(1, 0, 0, 1), "GAME OVER");
-                ImGui::TextWrapped("Your journey has ended in the cold snow.");
+        // Draw Image
+        if (current && !current->imagePath.empty()) {
+            unsigned int texID = engine.getNodeTexture(current->imagePath);
+            if (texID != 0) {
+                float w = ImGui::GetContentRegionAvail().x;
+                ImGui::Image((void*)(intptr_t)texID, ImVec2(w, 350)); 
             }
-            ImGui::SetWindowFontScale(1.0f);
-            
-            ImGui::Separator();
-            ImGui::Text("FINAL RESULTS:");
-            ImGui::Text("Title Earned: %s", engine.getFinalTitle().c_str());
-            ImGui::Text("Final Reputation: %d", stats.reputation);
-            ImGui::Text("Days Survived: %d", stats.dayCount);
-        } 
-        else {
-            // Normal Game State
-            StoryNode* current = engine.getCurrentNode();
-            if (current) ImGui::TextWrapped("%s", current->text.c_str());
         }
-        
+
+        // Draw Story
+        ImGui::Spacing();
+        ImGui::BeginChild("StoryTxt", ImVec2(0, 150), true);
+        if(engine.isGameEnded()) {
+            ImGui::TextColored(engine.isVictory()?ImVec4(0,1,0,1):ImVec4(1,0,0,1), 
+                engine.isVictory()?"VICTORY":"GAME OVER");
+        }
+        if(current) ImGui::TextWrapped("%s", current->text.c_str());
         ImGui::EndChild();
 
-        // ==========================================
-        // ACTIONS
-        // ==========================================
+        // Draw Buttons
         ImGui::Spacing();
-        ImGui::TextDisabled("ACTIONS");
-        
-        if (!engine.isGameEnded()) {
-            StoryNode* current = engine.getCurrentNode();
-            if (current) {
-                auto& options = current->children;
-                for (int i = 0; i < options.size(); ++i) {
-                    ImGui::PushID(i); 
-                    if (ImGui::Button(options[i].first.c_str(), ImVec2(-1, 40))) {
-                        engine.processChoice(i); 
-                    }
-                    ImGui::PopID();
+        if (!engine.isGameEnded() && current) {
+            for (int i=0; i<current->children.size(); i++) {
+                ImGui::PushID(i);
+                if (ImGui::Button(current->children[i].first.c_str(), ImVec2(-1, 50))) {
+                    engine.processChoice(i);
                 }
+                ImGui::PopID();
+                ImGui::Spacing();
             }
         } else {
-            // End Game Buttons
-            if (ImGui::Button("Play Again", ImVec2(-1, 40))) {
-                engine.initGame();
-            }
-            if (ImGui::Button("Quit", ImVec2(-1, 40))) {
-                running = false;
-            }
+            if (ImGui::Button("RESTART", ImVec2(-1, 50))) engine.initGame();
         }
 
-        // ==========================================
-        // RIGHT COLUMN (LOGS)
-        // ==========================================
-        ImGui::NextColumn();
-        ImGui::TextDisabled("GAME LOG");
         ImGui::Separator();
-        ImGui::BeginChild("LogRegion", ImVec2(0, 0), false);
-        const std::vector<std::string>& logs = engine.getGameLog();
-        for (const auto& logEntry : logs) ImGui::TextWrapped("> %s", logEntry.c_str());
-        if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY()) ImGui::SetScrollHereY(1.0f);
+        ImGui::BeginChild("Log", ImVec2(0,0));
+        for(auto& s : engine.getGameLog()) ImGui::TextWrapped("> %s", s.c_str());
+        if(ImGui::GetScrollY() >= ImGui::GetScrollMaxY()) ImGui::SetScrollHereY(1.0f);
         ImGui::EndChild();
     }
     ImGui::End();
+    ImGui::PopStyleColor();
 
-    // Inventory Popup logic
     if (showInventory) {
-        ImGui::Begin("Inventory", &showInventory, ImGuiWindowFlags_AlwaysAutoResize);
-        const std::vector<Item>& inv = engine.getInventory();
-        if (inv.empty()) ImGui::Text("Empty.");
-        else for (const auto& item : inv) ImGui::Text("- %s (%d)", item.name.c_str(), item.quantity);
+        ImGui::Begin("Pack", &showInventory);
+        for(auto& i : engine.getInventory()) ImGui::Text("%s x%d", i.name.c_str(), i.quantity);
         ImGui::End();
     }
 }
 
-// Main Function Boilerplate
 int main() {
     if (!glfwInit()) return -1;
-    const char* glsl_version = "#version 130";
-    GLFWwindow* window = glfwCreateWindow(1280, 720, "Wolf Survival", NULL, NULL);
-    if (!window) return -1;
-    glfwMakeContextCurrent(window);
+    GLFWwindow* w = glfwCreateWindow(1280, 720, "Wolf Survival", NULL, NULL);
+    glfwMakeContextCurrent(w);
     glfwSwapInterval(1);
-    
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGui_ImplGlfw_InitForOpenGL(window, true);
-    ImGui_ImplOpenGL3_Init(glsl_version);
+    ImGui_ImplGlfw_InitForOpenGL(w, true);
+    ImGui_ImplOpenGL3_Init("#version 130");
     SetupImGuiStyle();
-
-    GameEngine game;
-    game.initGame();
-
-    bool showInv = false, showStats = false, run = true;
-    while (!glfwWindowShouldClose(window) && run) {
-        glfwPollEvents();
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
-        RenderGameUI(game, showInv, showStats, run);
-        ImGui::Render();
-        int w, h;
-        glfwGetFramebufferSize(window, &w, &h);
-        glViewport(0, 0, w, h);
-        glClearColor(0.1f, 0.1f, 0.12f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-        glfwSwapBuffers(window);
-    }
     
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
-    glfwDestroyWindow(window);
-    glfwTerminate();
+    GameEngine game; game.initGame();
+    bool inv=false, stat=false, run=true;
+    while(!glfwWindowShouldClose(w) && run) {
+        glfwPollEvents();
+        ImGui_ImplOpenGL3_NewFrame(); ImGui_ImplGlfw_NewFrame(); ImGui::NewFrame();
+        RenderGameUI(game, inv, stat, run);
+        ImGui::Render();
+        int width, height; glfwGetFramebufferSize(w, &width, &height);
+        glViewport(0, 0, width, height);
+        glClearColor(0,0,0,1); glClear(GL_COLOR_BUFFER_BIT);
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        glfwSwapBuffers(w);
+    }
+    ImGui_ImplOpenGL3_Shutdown(); ImGui_ImplGlfw_Shutdown(); ImGui::DestroyContext();
+    glfwDestroyWindow(w); glfwTerminate();
     return 0;
-}
+}                                  
