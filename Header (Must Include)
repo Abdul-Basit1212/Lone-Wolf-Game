@@ -5,17 +5,10 @@
 #include <vector>
 #include <iostream>
 
-// ==========================================
-// SHARED ENUMS
-// ==========================================
+// Enums
 enum ItemType { FOOD, HERB, TOOL, WEAPON };
-enum WolfRole { HUNTER, SCOUT, GUARD };
 
-// ==========================================
-// CORE STRUCTS
-// ==========================================
-
-// 1. WOLF STATS
+// Structs
 struct WolfStats {
     int health = 100;
     int hunger = 0;
@@ -24,7 +17,6 @@ struct WolfStats {
     int dayCount = 1;
 };
 
-// 2. ITEM DEFINITION
 struct Item {
     std::string name;
     ItemType type;
@@ -36,13 +28,13 @@ struct Item {
     Item() {}
 };
 
-// 3. STORY NODE (Moved Global so GUI can see it)
-// We use a typedef so "Option" is just a pair (Button Text, Next Node ID)
+// Typedef for Choice Options (Button Text, Next Node ID)
 typedef std::pair<std::string, int> Option; 
 
 struct StoryNode {
     int id;
-    std::string text; // KEEPING NAME 'text'
+    std::string text;
+    std::string imagePath; // Stores filename like "1.png"
     
     int healthChange = 0;
     int energyChange = 0;
@@ -53,10 +45,10 @@ struct StoryNode {
     std::string requiredItem = "None";
     std::string rewardItem = "None";
 
-    // Pair<ButtonText, NextNodeID>
-    std::vector<Option> children; // KEEPING NAME 'children'
+    std::vector<Option> children; 
 
-    StoryNode(int _id, std::string _text) : id(_id), text(_text) {}
+    StoryNode(int _id, std::string _text, std::string _img = "") 
+        : id(_id), text(_text), imagePath(_img) {}
     StoryNode() {} 
 };
 
